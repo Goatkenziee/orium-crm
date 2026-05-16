@@ -1,0 +1,27 @@
+{
+  "goal": "build me a full stack crm for my busiess",
+  "updatedAt": "2026-05-16T02:24:51.990Z",
+  "runCount": 3,
+  "autonomousIteration": 0,
+  "repoUrl": null,
+  "deployUrl": null,
+  "fileCount": 16,
+  "files": [
+    ".env.example",
+    ".gitignore",
+    "README.md",
+    "app/dashboard/page.tsx",
+    "app/globals.css",
+    "app/layout.tsx",
+    "app/page.tsx",
+    "components/ClientForm.tsx",
+    "components/ClientTable.tsx",
+    "lib/store.ts",
+    "next.config.mjs",
+    "package.json",
+    "postcss.config.js",
+    "tailwind.config.ts",
+    "tsconfig.json"
+  ],
+  "lastRunSummary": "→ Deploying to Vercel."
+}

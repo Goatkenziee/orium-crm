@@ -1,12 +1,9 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
-
-const inter = Inter({ subsets: ['latin'] })
+import type { Metadata } from "next"
+import "./globals.css"
 
 export const metadata: Metadata = {
-  title: 'Orium CRM – Credit Repair Agency Management',
-  description: 'Full-stack CRM for credit repair agencies. Manage clients, disputes, letters, and revenue.',
+  title: "Orium CRM - Credit Repair Management",
+  description: "Manage your credit repair clients efficiently with Orium CRM",
 }
 
 export default function RootLayout({
@@ -16,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body>{children}</body>
     </html>
   )
 }

@@ -1,150 +1,186 @@
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
+import { useState, useEffect } from 'react'
+import { useCRMStore, Client } from '@/lib/store'
+import ClientForm from '@/components/ClientForm'
+import ClientTable from '@/components/ClientTable'
+import { Plus, BarChart3, Users, DollarSign, TrendingUp } from 'lucide-react'
 
 export default function Home() {
-  const [email, setEmail] = useState('')
-  const [submitted, setSubmitted] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const [editingClient, setEditingClient] = useState<Client | undefined>(undefined)
+  const [mounted, setMounted] = useState(false)
 
-  const handleSignup = (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitted(true)
-    setTimeout(() => {
-      setSubmitted(false)
-      setEmail('')
-    }, 3000)
+  const clients = useCRMStore((state) => state.clients)
+  const addClient = useCRMStore((state) => state.addClient)
+  const updateClient = useCRMStore((state) => state.updateClient)
+  const initializeSampleData = useCRMStore((state) => state.initializeSampleData)
+
+  useEffect(() => {
+    setMounted(true)
+    if (clients.length === 0) {
+      initializeSampleData()
+    }
+  }, [])
+
+  const handleFormSubmit = (data: Omit<Client, 'id'>) => {
+    if (editingClient) {
+      updateClient(editingClient.id, data)
+      setEditingClient(undefined)
+    } else {
+      addClient(data)
+    }
+    setShowForm(false)
   }
 
+  const handleEdit = (client: Client) => {
+    setEditingClient(client)
+    setShowForm(true)
+  }
+
+  const handleClose = () => {
+    setShowForm(false)
+    setEditingClient(undefined)
+  }
+
+  if (!mounted) return null
+
+  // Calculate metrics
+  const activeClients = clients.filter((c) => c.status === 'active').length
+  const totalRevenue = clients.reduce((sum, c) => sum + c.monthlyFee, 0)
+  const avgCreditScore =
+    clients.length > 0
+      ? Math.round(clients.reduce((sum, c) => sum + c.creditScore, 0) / clients.length)
+      : 0
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Navigation */}
-      <nav className="border-b border-slate-700 bg-slate-900/50 backdrop-blur">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="text-2xl font-bold text-white">Orium CRM</div>
-          <div className="space-x-4">
-            <Link href="/dashboard" className="text-slate-300 hover:text-white transition">
-              Dashboard
-            </Link>
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition">
-              Sign In
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      {/* Header */}
+      <header className="border-b border-gray-200 bg-white/80 backdrop-blur-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-4xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                Orium CRM
+              </h1>
+              <p className="text-sm text-gray-600 mt-1">Credit Repair Agency Management</p>
+            </div>
+            <button
+              onClick={() => {
+                setEditingClient(undefined)
+                setShowForm(true)
+              }}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-xl transition transform hover:scale-105"
+            >
+              <Plus size={20} />
+              Add Client
             </button>
           </div>
         </div>
-      </nav>
+      </header>
 
-      {/* Hero Section */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center space-y-6">
-          <h1 className="text-5xl sm:text-6xl font-bold text-white leading-tight">
-            Credit Repair Agency
-            <span className="block text-blue-400">Management Made Simple</span>
-          </h1>
-          <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-            Manage clients, track disputes, generate letters, and monitor credit score improvements all in one powerful CRM platform.
-          </p>
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        {/* Metrics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+          {/* Active Clients */}
+          <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition border-l-4 border-blue-500">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+                  Active Clients
+                </p>
+                <p className="text-4xl font-black text-gray-900 mt-2">{activeClients}</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  {clients.length} total registered
+                </p>
+              </div>
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <Users className="text-blue-600" size={28} />
+              </div>
+            </div>
+          </div>
 
-          {/* CTA Form */}
-          <form onSubmit={handleSignup} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-            <input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="flex-1 px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg transition"
-            >
-              Get Started
-            </button>
-          </form>
-          {submitted && (
-            <p className="text-green-400 text-sm">✓ We'll be in touch soon!</p>
+          {/* Monthly Revenue */}
+          <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition border-l-4 border-green-500">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+                  Monthly Revenue
+                </p>
+                <p className="text-4xl font-black text-gray-900 mt-2">
+                  ${(totalRevenue / 1000).toFixed(1)}K
+                </p>
+                <p className="text-xs text-gray-500 mt-2">Recurring monthly</p>
+              </div>
+              <div className="p-3 bg-green-100 rounded-lg">
+                <DollarSign className="text-green-600" size={28} />
+              </div>
+            </div>
+          </div>
+
+          {/* Avg Credit Score */}
+          <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition border-l-4 border-purple-500">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+                  Avg Credit Score
+                </p>
+                <p className="text-4xl font-black text-gray-900 mt-2">{avgCreditScore}</p>
+                <p className="text-xs text-gray-500 mt-2">Portfolio average</p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <TrendingUp className="text-purple-600" size={28} />
+              </div>
+            </div>
+          </div>
+
+          {/* Completion Rate */}
+          <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition border-l-4 border-indigo-500">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+                  Completed
+                </p>
+                <p className="text-4xl font-black text-gray-900 mt-2">
+                  {clients.filter((c) => c.status === 'completed').length}
+                </p>
+                <p className="text-xs text-gray-500 mt-2">Success cases</p>
+              </div>
+              <div className="p-3 bg-indigo-100 rounded-lg">
+                <BarChart3 className="text-indigo-600" size={28} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Clients Table Section */}
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Client Management</h2>
+            <p className="text-gray-600">
+              Manage all your credit repair clients in one place
+            </p>
+          </div>
+
+          {clients.length > 0 ? (
+            <ClientTable onEdit={handleEdit} />
+          ) : (
+            <div className="text-center py-12">
+              <Users size={48} className="text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-600 text-lg">No clients yet. Click "Add Client" to get started.</p>
+            </div>
           )}
         </div>
-
-        {/* Features Grid */}
-        <div className="grid md:grid-cols-3 gap-8 mt-20">
-          {[
-            {
-              icon: '👥',
-              title: 'Client Management',
-              desc: 'Track all client details, credit profiles, and progress in one dashboard'
-            },
-            {
-              icon: '📋',
-              title: 'Dispute Tracking',
-              desc: 'Monitor bureau disputes, status updates, and resolution history'
-            },
-            {
-              icon: '📧',
-              title: 'Letter Generation',
-              desc: 'AI-powered dispute letters with templates and mailing tracking'
-            },
-            {
-              icon: '📊',
-              title: 'Analytics & ROI',
-              desc: 'Real-time metrics on credit score improvements and revenue'
-            },
-            {
-              icon: '💳',
-              title: 'Stripe Integration',
-              desc: 'Seamless billing and subscription tracking for agencies'
-            },
-            {
-              icon: '👨‍💼',
-              title: 'Team Collaboration',
-              desc: 'Multi-user support for agency teams with role-based access'
-            },
-          ].map((feature, i) => (
-            <div key={i} className="bg-slate-800/50 border border-slate-700 rounded-lg p-6 hover:border-blue-500 transition">
-              <div className="text-4xl mb-3">{feature.icon}</div>
-              <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
-              <p className="text-slate-400">{feature.desc}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Pricing Section */}
-        <div className="mt-20 text-center space-y-8">
-          <h2 className="text-3xl font-bold text-white">Simple Pricing</h2>
-          <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
-            {[
-              {
-                name: 'Solo',
-                price: '$299',
-                features: ['Up to 50 clients', 'Letter generation', 'Basic analytics']
-              },
-              {
-                name: 'Agency',
-                price: '$999',
-                features: ['Unlimited clients', 'Team collaboration', 'Advanced analytics', 'Stripe sync']
-              },
-            ].map((plan, i) => (
-              <div key={i} className="bg-slate-800 border border-slate-700 rounded-lg p-8">
-                <h3 className="text-2xl font-bold text-white mb-2">{plan.name}</h3>
-                <p className="text-4xl font-bold text-blue-400 mb-6">{plan.price}<span className="text-lg text-slate-400">/mo</span></p>
-                <ul className="space-y-3 mb-6">
-                  {plan.features.map((f, j) => (
-                    <li key={j} className="text-slate-300">✓ {f}</li>
-                  ))}
-                </ul>
-                <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition">
-                  Start Free Trial
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-20 pt-12 border-t border-slate-700 text-center text-slate-400">
-          <p>© 2026 Orium CRM. Built for credit repair agencies.</p>
-        </div>
       </div>
+
+      {/* Form Modal */}
+      {showForm && (
+        <ClientForm
+          onSubmit={handleFormSubmit}
+          onClose={handleClose}
+          initialData={editingClient}
+        />
+      )}
     </main>
   )
 }
