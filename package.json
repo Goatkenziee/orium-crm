@@ -12,8 +12,14 @@
     "next": "14.2.18",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "zustand": "^4.4.7",
-    "lucide-react": "^0.292.0"
+    "lucide-react": "^0.395.0",
+    "recharts": "^2.12.7",
+    "react-hook-form": "^7.52.0",
+    "zod": "^3.23.8",
+    "@hookform/resolvers": "^3.6.0",
+    "@hello-pangea/dnd": "^16.6.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^3.6.0"
   },
   "devDependencies": {
     "typescript": "^5.4.5",

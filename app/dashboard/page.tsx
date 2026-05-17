@@ -1,285 +1,173 @@
-'use client'
+"use client";
+import { useCRM } from "@/store/crm";
+import TopBar from "@/components/TopBar";
+import KpiCard from "@/components/KpiCard";
+import { Users, Briefcase, DollarSign, CheckSquare, TrendingUp, Clock } from "lucide-react";
+import { MONTHLY_REVENUE } from "@/lib/data";
+import clsx from "clsx";
+import Link from "next/link";
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { useCRMStore, Client } from '@/lib/store'
-import ClientForm from '@/components/ClientForm'
-import ClientTable from '@/components/ClientTable'
-import { Plus, Users, TrendingUp, AlertCircle, BarChart3, Zap, LogOut, Menu, X } from 'lucide-react'
+const STAGE_COLORS: Record<string, string> = {
+  lead: "bg-slate-200 text-slate-700",
+  qualified: "bg-blue-100 text-blue-700",
+  proposal: "bg-amber-100 text-amber-700",
+  negotiation: "bg-purple-100 text-purple-700",
+  won: "bg-emerald-100 text-emerald-700",
+  lost: "bg-red-100 text-red-700",
+};
 
-export default function Dashboard() {
-  const [showForm, setShowForm] = useState(false)
-  const [editingClient, setEditingClient] = useState<Client | null>(null)
-  const [selectedTab, setSelectedTab] = useState<'clients' | 'disputes' | 'payments'>('clients')
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [mounted, setMounted] = useState(false)
+const ACTIVITY_ICONS: Record<string, { bg: string; text: string; symbol: string }> = {
+  email: { bg: "bg-blue-100", text: "text-blue-600", symbol: "✉" },
+  call: { bg: "bg-violet-100", text: "text-violet-600", symbol: "📞" },
+  meeting: { bg: "bg-amber-100", text: "text-amber-600", symbol: "🗓" },
+  note: { bg: "bg-slate-100", text: "text-slate-600", symbol: "📝" },
+  deal_won: { bg: "bg-emerald-100", text: "text-emerald-600", symbol: "🏆" },
+  deal_lost: { bg: "bg-red-100", text: "text-red-600", symbol: "✗" },
+  contact_added: { bg: "bg-indigo-100", text: "text-indigo-600", symbol: "👤" },
+  task_done: { bg: "bg-teal-100", text: "text-teal-600", symbol: "✓" },
+};
 
-  const clients = useCRMStore((state) => state.clients)
-  const disputes = useCRMStore((state) => state.disputes)
-  const addClient = useCRMStore((state) => state.addClient)
-  const updateClient = useCRMStore((state) => state.updateClient)
-  const initializeSampleData = useCRMStore((state) => state.initializeSampleData)
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days > 30) return `${Math.floor(days / 30)}mo ago`;
+  if (days > 0) return `${days}d ago`;
+  const hrs = Math.floor(diff / 3600000);
+  if (hrs > 0) return `${hrs}h ago`;
+  return "Just now";
+}
 
-  // Initialize sample data on mount
-  useEffect(() => {
-    setMounted(true)
-    if (clients.length === 0) {
-      initializeSampleData()
-    }
-  }, [])
+export default function DashboardPage() {
+  const { contacts, deals, tasks, activities } = useCRM();
 
-  if (!mounted) return null
+  const totalContacts = contacts.length;
+  const customers = contacts.filter((c) => c.status === "customer").length;
+  const activeDeals = deals.filter((d) => !["won", "lost"].includes(d.stage));
+  const pipelineValue = activeDeals.reduce((s, d) => s + d.value, 0);
+  const wonRevenue = deals.filter((d) => d.stage === "won").reduce((s, d) => s + d.value, 0);
+  const openTasks = tasks.filter((t) => t.status !== "done").length;
+  const highPriority = tasks.filter((t) => t.status !== "done" && t.priority === "high").length;
 
-  const activeClientsCount = clients.filter((c) => c.status === 'active').length
-  const avgCreditScore = clients.length > 0 ? Math.round(
-    clients.reduce((sum, c) => sum + c.creditScore, 0) / clients.length
-  ) : 0
-  const openDisputesCount = disputes.filter((d) => d.status !== 'resolved').length
-  const totalRevenue = clients.reduce((sum, c) => sum + c.monthlyFee, 0)
-
-  const handleSubmit = (data: any) => {
-    if (editingClient) {
-      updateClient(editingClient.id, data)
-      setEditingClient(null)
-    } else {
-      addClient(data)
-    }
-    setShowForm(false)
-  }
-
-  const handleEdit = (client: Client) => {
-    setEditingClient(client)
-    setShowForm(true)
-  }
-
-  const handleFormClose = () => {
-    setShowForm(false)
-    setEditingClient(null)
-  }
+  const maxRevenue = Math.max(...MONTHLY_REVENUE.map((m) => m.revenue));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-      {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">CRM</span>
+    <div className="flex-1 flex flex-col">
+      <TopBar title="Dashboard" subtitle="Welcome back, Alexander 👋" />
+      <div className="flex-1 p-6 space-y-6">
+        {/* KPIs */}
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+          <KpiCard title="Total Contacts" value={String(totalContacts)} change={`${customers} customers`} changePositive icon={Users} iconColor="text-indigo-600" iconBg="bg-indigo-50" />
+          <KpiCard title="Pipeline Value" value={`$${(pipelineValue / 1000).toFixed(0)}k`} change={`${activeDeals.length} active deals`} changePositive icon={Briefcase} iconColor="text-amber-600" iconBg="bg-amber-50" />
+          <KpiCard title="Won Revenue" value={`$${(wonRevenue / 1000).toFixed(0)}k`} change="All time" changePositive icon={DollarSign} iconColor="text-emerald-600" iconBg="bg-emerald-50" />
+          <KpiCard title="Open Tasks" value={String(openTasks)} change={`${highPriority} high priority`} changePositive={highPriority === 0} icon={CheckSquare} iconColor="text-violet-600" iconBg="bg-violet-50" />
+        </div>
+
+        {/* Charts + Pipeline */}
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+          {/* Revenue Chart */}
+          <div className="xl:col-span-3 bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <p className="text-sm font-semibold text-slate-700">Monthly Revenue</p>
+                <p className="text-xs text-slate-400">Last 6 months</p>
+              </div>
+              <TrendingUp size={18} className="text-indigo-400" />
             </div>
-            <span className="font-bold text-gray-900">Orium CRM</span>
-          </Link>
-          
-          <div className="hidden md:flex items-center gap-4">
-            <span className="text-sm text-gray-600">Dashboard</span>
-            <button className="text-gray-600 hover:text-gray-900 flex items-center gap-2 transition">
-              <LogOut size={18} />
-              Sign Out
-            </button>
+            <div className="flex items-end gap-3 h-36">
+              {MONTHLY_REVENUE.map((m) => {
+                const height = Math.max(8, (m.revenue / maxRevenue) * 100);
+                return (
+                  <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
+                    <span className="text-xs text-slate-500 font-medium">${(m.revenue / 1000).toFixed(0)}k</span>
+                    <div className="w-full rounded-t-md bg-indigo-500 hover:bg-indigo-600 transition-colors cursor-pointer"
+                      style={{ height: `${height}%` }} />
+                    <span className="text-xs text-slate-400">{m.month}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          <button 
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden text-gray-600"
-          >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-        </div>
-      </nav>
-
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-white border-b border-gray-200 p-4 space-y-2">
-          <Link href="/" className="block text-gray-600 hover:text-gray-900 py-2">
-            Home
-          </Link>
-          <button className="w-full text-left text-gray-600 hover:text-gray-900 py-2 flex items-center gap-2">
-            <LogOut size={18} />
-            Sign Out
-          </button>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-12">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h1 className="text-4xl font-bold mb-2">Dashboard</h1>
-              <p className="text-blue-100">Welcome back! Manage your clients and track progress.</p>
+          {/* Deal Stages */}
+          <div className="xl:col-span-2 bg-white rounded-xl border border-slate-200 p-5">
+            <p className="text-sm font-semibold text-slate-700 mb-4">Deals by Stage</p>
+            <div className="space-y-3">
+              {Object.entries(
+                deals.reduce((acc, d) => {
+                  acc[d.stage] = (acc[d.stage] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>)
+              ).map(([stage, count]) => (
+                <div key={stage} className="flex items-center gap-3">
+                  <span className={clsx("text-xs font-semibold px-2 py-0.5 rounded-full capitalize w-24 text-center", STAGE_COLORS[stage])}>
+                    {stage}
+                  </span>
+                  <div className="flex-1 bg-slate-100 rounded-full h-2">
+                    <div className="bg-indigo-500 h-2 rounded-full transition-all"
+                      style={{ width: `${(count / deals.length) * 100}%` }} />
+                  </div>
+                  <span className="text-xs font-bold text-slate-600 w-4 text-right">{count}</span>
+                </div>
+              ))}
             </div>
-            <button
-              onClick={() => {
-                setEditingClient(null)
-                setShowForm(true)
-              }}
-              className="flex items-center gap-2 px-6 py-3 bg-white text-indigo-600 rounded-lg hover:bg-gray-50 font-bold transition shadow-lg hover:shadow-xl"
-            >
-              <Plus size={20} />
-              Add Client
-            </button>
+          </div>
+        </div>
+
+        {/* Recent Activity + Tasks */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          {/* Activity Feed */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-semibold text-slate-700">Recent Activity</p>
+              <Link href="/activity" className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">View all →</Link>
+            </div>
+            <div className="space-y-3">
+              {activities.slice(0, 5).map((a) => {
+                const icon = ACTIVITY_ICONS[a.type] || ACTIVITY_ICONS.note;
+                return (
+                  <div key={a.id} className="flex items-start gap-3">
+                    <div className={clsx("w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0", icon.bg, icon.text)}>
+                      {icon.symbol}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{a.title}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{timeAgo(a.createdAt)}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Tasks */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-semibold text-slate-700">Open Tasks</p>
+              <Link href="/tasks" className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">View all →</Link>
+            </div>
+            <div className="space-y-2">
+              {tasks.filter((t) => t.status !== "done").slice(0, 5).map((t) => (
+                <div key={t.id} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 transition-colors">
+                  <Clock size={14} className={clsx(
+                    t.priority === "high" ? "text-red-500" :
+                    t.priority === "medium" ? "text-amber-500" : "text-slate-400"
+                  )} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">{t.title}</p>
+                    {t.contactName && <p className="text-xs text-slate-400">{t.contactName}</p>}
+                  </div>
+                  <span className={clsx("text-xs font-semibold px-2 py-0.5 rounded-full",
+                    t.priority === "high" ? "bg-red-100 text-red-600" :
+                    t.priority === "medium" ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-500"
+                  )}>
+                    {t.priority}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Stats Cards */}
-      <div className="px-6 py-8 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <div className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium mb-1">Active Clients</p>
-                <p className="text-3xl font-bold text-gray-900">{activeClientsCount}</p>
-              </div>
-              <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                <Users className="text-blue-600" size={24} />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium mb-1">Avg Credit Score</p>
-                <p className="text-3xl font-bold text-gray-900">{avgCreditScore}</p>
-              </div>
-              <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
-                <TrendingUp className="text-green-600" size={24} />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium mb-1">Open Disputes</p>
-                <p className="text-3xl font-bold text-gray-900">{openDisputesCount}</p>
-              </div>
-              <div className="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center">
-                <AlertCircle className="text-orange-600" size={24} />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium mb-1">Monthly Revenue</p>
-                <p className="text-3xl font-bold text-gray-900">${totalRevenue.toLocaleString()}</p>
-              </div>
-              <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
-                <BarChart3 className="text-purple-600" size={24} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="flex gap-0 border-b border-gray-200">
-            {(['clients', 'disputes', 'payments'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setSelectedTab(tab)}
-                className={`flex-1 px-6 py-4 font-medium transition border-b-2 ${
-                  selectedTab === tab
-                    ? 'text-blue-600 border-blue-600 bg-blue-50'
-                    : 'text-gray-600 border-transparent hover:text-gray-900'
-                }`}
-              >
-                {tab === 'clients' && <span className="flex items-center gap-2 justify-center"><Users size={18} /> Clients</span>}
-                {tab === 'disputes' && <span className="flex items-center gap-2 justify-center"><AlertCircle size={18} /> Disputes</span>}
-                {tab === 'payments' && <span className="flex items-center gap-2 justify-center"><BarChart3 size={18} /> Payments</span>}
-              </button>
-            ))}
-          </div>
-
-          {/* Clients Tab */}
-          {selectedTab === 'clients' && (
-            <div className="p-6">
-              {clients.length === 0 ? (
-                <div className="text-center py-12">
-                  <Zap className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 font-medium">No clients yet</p>
-                  <button
-                    onClick={() => setShowForm(true)}
-                    className="mt-4 text-blue-600 hover:text-indigo-600 font-medium"
-                  >
-                    Add your first client
-                  </button>
-                </div>
-              ) : (
-                <ClientTable onEdit={handleEdit} />
-              )}
-            </div>
-          )}
-
-          {/* Disputes Tab */}
-          {selectedTab === 'disputes' && (
-            <div className="p-6">
-              {disputes.length === 0 ? (
-                <div className="text-center py-12">
-                  <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 font-medium">No disputes yet</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left px-4 py-3 font-semibold text-gray-900">Client</th>
-                        <th className="text-left px-4 py-3 font-semibold text-gray-900">Description</th>
-                        <th className="text-left px-4 py-3 font-semibold text-gray-900">Amount</th>
-                        <th className="text-left px-4 py-3 font-semibold text-gray-900">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {disputes.map((dispute) => {
-                        const client = clients.find((c) => c.id === dispute.clientId)
-                        return (
-                          <tr key={dispute.id} className="border-b border-gray-100 hover:bg-gray-50 transition">
-                            <td className="px-4 py-3 font-medium text-gray-900">{client?.name || 'Unknown'}</td>
-                            <td className="px-4 py-3 text-gray-600">{dispute.description}</td>
-                            <td className="px-4 py-3 font-semibold text-gray-900">${dispute.amount.toLocaleString()}</td>
-                            <td className="px-4 py-3">
-                              <span className={`px-3 py-1 rounded-full text-xs font-bold inline-block ${
-                                dispute.status === 'resolved' ? 'bg-green-100 text-green-800' :
-                                dispute.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-blue-100 text-blue-800'
-                              }`}>
-                                {dispute.status.charAt(0).toUpperCase() + dispute.status.slice(1)}
-                              </span>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Payments Tab */}
-          {selectedTab === 'payments' && (
-            <div className="p-6">
-              <div className="text-center py-12">
-                <BarChart3 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 font-medium">Payment management coming soon</p>
-                <p className="text-gray-400 text-sm mt-2">Track subscriptions and billing here</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Client Form Modal */}
-      {showForm && (
-        <ClientForm
-          onSubmit={handleSubmit}
-          onClose={handleFormClose}
-          initialData={editingClient || undefined}
-        />
-      )}
     </div>
-  )
+  );
 }
