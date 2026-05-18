@@ -1,65 +1,55 @@
-import type { Contact, Company, Deal, Task, Activity, CRMStore } from "./types";
+import type { Contact, Deal, Task, Company, Activity } from "./types";
 
-const now = new Date().toISOString();
-const d = (daysAgo: number) => new Date(Date.now() - daysAgo * 86400000).toISOString();
+export const SEED_CONTACTS: Contact[] = [
+  { id: "c1", firstName: "Sarah", lastName: "Chen", email: "sarah.chen@techflow.com", phone: "+1 415 555 0101", company: "TechFlow Inc", companyId: "co1", title: "CTO", status: "customer", tags: ["enterprise", "tech"], notes: "Key decision maker. Very responsive.", value: 85000, createdAt: "2024-01-15T10:00:00Z", updatedAt: "2024-03-20T14:30:00Z" },
+  { id: "c2", firstName: "Marcus", lastName: "Webb", email: "m.webb@growthco.io", phone: "+1 312 555 0202", company: "GrowthCo", companyId: "co2", title: "VP Sales", status: "prospect", tags: ["startup"], notes: "Interested in enterprise plan.", value: 32000, createdAt: "2024-02-01T09:00:00Z", updatedAt: "2024-03-18T11:00:00Z" },
+  { id: "c3", firstName: "Elena", lastName: "Rossi", email: "elena@innovatech.eu", phone: "+44 20 555 0303", company: "InnovaTech EU", companyId: "co3", title: "CEO", status: "customer", tags: ["enterprise", "international"], notes: "Expanding to US market.", value: 120000, createdAt: "2024-01-20T08:00:00Z", updatedAt: "2024-03-22T16:00:00Z" },
+  { id: "c4", firstName: "James", lastName: "Liu", email: "jliu@databridge.com", phone: "+1 628 555 0404", company: "DataBridge", companyId: "co4", title: "Head of Engineering", status: "lead", tags: ["tech"], notes: "Came via referral from Sarah.", value: 0, createdAt: "2024-03-01T11:00:00Z", updatedAt: "2024-03-25T09:00:00Z" },
+  { id: "c5", firstName: "Priya", lastName: "Nair", email: "priya@scaleup.ai", phone: "+1 650 555 0505", company: "ScaleUp AI", companyId: "co5", title: "Founder", status: "prospect", tags: ["ai", "startup"], notes: "Demo scheduled next week.", value: 45000, createdAt: "2024-02-15T14:00:00Z", updatedAt: "2024-03-19T13:00:00Z" },
+  { id: "c6", firstName: "Daniel", lastName: "Ortega", email: "d.ortega@cloudvault.net", phone: "+1 213 555 0606", company: "CloudVault", companyId: "co6", title: "COO", status: "churned", tags: ["cloud"], notes: "Contract ended Q1. Possible win-back.", value: 0, createdAt: "2023-06-01T09:00:00Z", updatedAt: "2024-03-01T10:00:00Z" },
+];
+
+export const SEED_DEALS: Deal[] = [
+  { id: "d1", title: "TechFlow Enterprise License", contactId: "c1", contactName: "Sarah Chen", company: "TechFlow Inc", value: 85000, stage: "closed_won", probability: 100, expectedClose: "2024-03-15", createdAt: "2024-01-15T10:00:00Z", updatedAt: "2024-03-15T12:00:00Z", notes: "Annual license. Auto-renews." },
+  { id: "d2", title: "GrowthCo Sales Suite", contactId: "c2", contactName: "Marcus Webb", company: "GrowthCo", value: 32000, stage: "proposal", probability: 60, expectedClose: "2024-04-30", createdAt: "2024-02-01T09:00:00Z", updatedAt: "2024-03-20T11:00:00Z", notes: "Sent proposal v2." },
+  { id: "d3", title: "InnovaTech Global Expansion", contactId: "c3", contactName: "Elena Rossi", company: "InnovaTech EU", value: 120000, stage: "negotiation", probability: 80, expectedClose: "2024-04-15", createdAt: "2024-01-20T08:00:00Z", updatedAt: "2024-03-22T16:00:00Z", notes: "Legal review in progress." },
+  { id: "d4", title: "DataBridge Integration", contactId: "c4", contactName: "James Liu", company: "DataBridge", value: 28000, stage: "qualification", probability: 40, expectedClose: "2024-05-30", createdAt: "2024-03-01T11:00:00Z", updatedAt: "2024-03-25T09:00:00Z", notes: "Technical evaluation phase." },
+  { id: "d5", title: "ScaleUp AI Platform", contactId: "c5", contactName: "Priya Nair", company: "ScaleUp AI", value: 45000, stage: "prospecting", probability: 20, expectedClose: "2024-06-30", createdAt: "2024-02-15T14:00:00Z", updatedAt: "2024-03-19T13:00:00Z", notes: "Initial interest confirmed." },
+  { id: "d6", title: "CloudVault Win-Back", contactId: "c6", contactName: "Daniel Ortega", company: "CloudVault", value: 55000, stage: "prospecting", probability: 15, expectedClose: "2024-07-31", createdAt: "2024-03-10T09:00:00Z", updatedAt: "2024-03-18T10:00:00Z", notes: "Reaching out after churn." },
+];
+
+export const SEED_TASKS: Task[] = [
+  { id: "t1", title: "Follow up with Elena re: legal review", description: "Check if legal team approved contract terms", contactId: "c3", dealId: "d3", priority: "high", status: "todo", dueDate: "2024-03-27", createdAt: "2024-03-22T16:00:00Z", updatedAt: "2024-03-22T16:00:00Z", assignee: "Alexander" },
+  { id: "t2", title: "Send updated proposal to GrowthCo", description: "Include revised pricing based on headcount", contactId: "c2", dealId: "d2", priority: "high", status: "in_progress", dueDate: "2024-03-26", createdAt: "2024-03-20T11:00:00Z", updatedAt: "2024-03-21T09:00:00Z", assignee: "Alexander" },
+  { id: "t3", title: "Schedule DataBridge technical demo", description: "Coordinate with engineering team", contactId: "c4", dealId: "d4", priority: "medium", status: "todo", dueDate: "2024-03-28", createdAt: "2024-03-25T09:00:00Z", updatedAt: "2024-03-25T09:00:00Z", assignee: "Alexander" },
+  { id: "t4", title: "Q1 Revenue report", description: "Prepare board presentation", priority: "medium", status: "in_progress", dueDate: "2024-03-31", createdAt: "2024-03-01T09:00:00Z", updatedAt: "2024-03-20T14:00:00Z", assignee: "Alexander" },
+  { id: "t5", title: "Priya Nair discovery call", description: "Qualify ScaleUp AI requirements", contactId: "c5", dealId: "d5", priority: "medium", status: "done", dueDate: "2024-03-20", createdAt: "2024-03-15T10:00:00Z", updatedAt: "2024-03-20T16:00:00Z", assignee: "Alexander" },
+  { id: "t6", title: "CloudVault win-back email sequence", description: "Draft personalised re-engagement emails", contactId: "c6", priority: "low", status: "todo", dueDate: "2024-04-05", createdAt: "2024-03-10T09:00:00Z", updatedAt: "2024-03-10T09:00:00Z", assignee: "Alexander" },
+];
+
+export const SEED_COMPANIES: Company[] = [
+  { id: "co1", name: "TechFlow Inc", industry: "Software", website: "https://techflow.com", phone: "+1 415 555 0100", email: "info@techflow.com", address: "101 Market St, San Francisco, CA", employees: "201-500", revenue: 42000000, notes: "", createdAt: "2024-01-15T10:00:00Z", updatedAt: "2024-03-20T14:00:00Z" },
+  { id: "co2", name: "GrowthCo", industry: "Marketing", website: "https://growthco.io", phone: "+1 312 555 0200", email: "hello@growthco.io", address: "200 N Michigan Ave, Chicago, IL", employees: "51-200", revenue: 8500000, notes: "", createdAt: "2024-02-01T09:00:00Z", updatedAt: "2024-03-18T11:00:00Z" },
+  { id: "co3", name: "InnovaTech EU", industry: "Technology", website: "https://innovatech.eu", phone: "+44 20 555 0300", email: "contact@innovatech.eu", address: "15 Canary Wharf, London, UK", employees: "500+", revenue: 180000000, notes: "", createdAt: "2024-01-20T08:00:00Z", updatedAt: "2024-03-22T16:00:00Z" },
+  { id: "co4", name: "DataBridge", industry: "Analytics", website: "https://databridge.com", phone: "+1 628 555 0400", email: "info@databridge.com", address: "525 Market St, San Francisco, CA", employees: "11-50", revenue: 3200000, notes: "", createdAt: "2024-03-01T11:00:00Z", updatedAt: "2024-03-25T09:00:00Z" },
+  { id: "co5", name: "ScaleUp AI", industry: "Artificial Intelligence", website: "https://scaleup.ai", phone: "+1 650 555 0500", email: "team@scaleup.ai", address: "2600 El Camino Real, Palo Alto, CA", employees: "1-10", revenue: 1100000, notes: "", createdAt: "2024-02-15T14:00:00Z", updatedAt: "2024-03-19T13:00:00Z" },
+  { id: "co6", name: "CloudVault", industry: "Cloud Infrastructure", website: "https://cloudvault.net", phone: "+1 213 555 0600", email: "ops@cloudvault.net", address: "633 W 5th St, Los Angeles, CA", employees: "201-500", revenue: 28000000, notes: "", createdAt: "2023-06-01T09:00:00Z", updatedAt: "2024-03-01T10:00:00Z" },
+];
+
+export const SEED_ACTIVITIES: Activity[] = [
+  { id: "a1", type: "call", title: "Discovery call with Sarah Chen", description: "Discussed enterprise needs and Q2 roadmap", contactId: "c1", contactName: "Sarah Chen", createdAt: "2024-03-22T14:00:00Z", duration: 45 },
+  { id: "a2", type: "email", title: "Proposal sent to Marcus Webb", description: "GrowthCo pricing proposal v2", contactId: "c2", dealId: "d2", contactName: "Marcus Webb", createdAt: "2024-03-20T11:00:00Z" },
+  { id: "a3", type: "meeting", title: "Contract negotiation – Elena Rossi", description: "Reviewed legal terms with InnovaTech team", contactId: "c3", dealId: "d3", contactName: "Elena Rossi", createdAt: "2024-03-19T10:00:00Z", duration: 90 },
+  { id: "a4", type: "note", title: "James Liu referral noted", description: "Referred by Sarah Chen at TechFlow", contactId: "c4", contactName: "James Liu", createdAt: "2024-03-18T09:00:00Z" },
+  { id: "a5", type: "call", title: "Discovery call – Priya Nair", description: "Confirmed AI platform requirements", contactId: "c5", dealId: "d5", contactName: "Priya Nair", createdAt: "2024-03-15T14:00:00Z", duration: 30 },
+  { id: "a6", type: "email", title: "Win-back outreach to Daniel Ortega", description: "Sent personalised re-engagement email", contactId: "c6", contactName: "Daniel Ortega", createdAt: "2024-03-10T09:00:00Z" },
+];
 
 export const MONTHLY_REVENUE = [
-  { month: "Dec", revenue: 28000 },
-  { month: "Jan", revenue: 34000 },
-  { month: "Feb", revenue: 29500 },
-  { month: "Mar", revenue: 42000 },
-  { month: "Apr", revenue: 38000 },
-  { month: "May", revenue: 51000 },
+  { month: "Oct", revenue: 62000 },
+  { month: "Nov", revenue: 75000 },
+  { month: "Dec", revenue: 91000 },
+  { month: "Jan", revenue: 58000 },
+  { month: "Feb", revenue: 83000 },
+  { month: "Mar", revenue: 105000 },
 ];
-
-export const seedCompanies: Company[] = [
-  { id: "c1", name: "Acme Corp", domain: "acme.com", industry: "Technology", size: "51-200", revenue: 5000000, phone: "+1 415 555 0100", address: "123 Market St, San Francisco, CA", notes: "Key enterprise account.", createdAt: d(90), updatedAt: d(10) },
-  { id: "c2", name: "Globex Inc", domain: "globex.com", industry: "Manufacturing", size: "201-500", revenue: 12000000, phone: "+1 212 555 0200", address: "45 Park Ave, New York, NY", notes: "Large mid-market client.", createdAt: d(80), updatedAt: d(5) },
-  { id: "c3", name: "Initech", domain: "initech.com", industry: "Finance", size: "11-50", revenue: 2000000, phone: "+1 512 555 0300", address: "88 Congress Ave, Austin, TX", notes: "", createdAt: d(60), updatedAt: d(20) },
-  { id: "c4", name: "Umbrella LLC", domain: "umbrella.com", industry: "Healthcare", size: "501-1000", revenue: 30000000, phone: "+1 312 555 0400", address: "200 N Michigan Ave, Chicago, IL", notes: "Strategic partner.", createdAt: d(45), updatedAt: d(3) },
-];
-
-export const seedContacts: Contact[] = [
-  { id: "ct1", firstName: "Sarah", lastName: "Chen", email: "sarah.chen@acme.com", phone: "+1 415 555 1001", company: "Acme Corp", companyId: "c1", title: "VP of Sales", status: "customer", tags: ["vip", "enterprise"], notes: "Met at SaaStr 2024. Prefers morning calls.", createdAt: d(85), updatedAt: d(2) },
-  { id: "ct2", firstName: "James", lastName: "Rivera", email: "james.r@globex.com", phone: "+1 212 555 1002", company: "Globex Inc", companyId: "c2", title: "CTO", status: "prospect", tags: ["technical"], notes: "Interested in API integration.", createdAt: d(70), updatedAt: d(7) },
-  { id: "ct3", firstName: "Emily", lastName: "Watson", email: "ewatson@initech.com", phone: "+1 512 555 1003", company: "Initech", companyId: "c3", title: "CEO", status: "lead", tags: ["decision-maker"], notes: "Referred by Sarah Chen.", createdAt: d(30), updatedAt: d(1) },
-  { id: "ct4", firstName: "Marcus", lastName: "Johnson", email: "m.johnson@umbrella.com", phone: "+1 312 555 1004", company: "Umbrella LLC", companyId: "c4", title: "Head of Operations", status: "customer", tags: ["upsell"], notes: "Renewal due in Q3.", createdAt: d(40), updatedAt: d(5) },
-  { id: "ct5", firstName: "Priya", lastName: "Patel", email: "priya.p@acme.com", phone: "+1 415 555 1005", company: "Acme Corp", companyId: "c1", title: "Product Manager", status: "prospect", tags: [], notes: "", createdAt: d(20), updatedAt: d(20) },
-  { id: "ct6", firstName: "Tom", lastName: "Bradley", email: "tbradley@freelance.io", phone: "+1 650 555 1006", company: "", companyId: "", title: "Consultant", status: "churned", tags: ["at-risk"], notes: "Cancelled subscription last quarter.", createdAt: d(120), updatedAt: d(30) },
-];
-
-export const seedDeals: Deal[] = [
-  { id: "d1", title: "Acme Enterprise Plan", contactId: "ct1", contactName: "Sarah Chen", companyId: "c1", companyName: "Acme Corp", stage: "negotiation", value: 48000, currency: "USD", probability: 75, closeDate: d(-14), notes: "Annual contract. Legal review pending.", createdAt: d(60), updatedAt: d(2), ownerName: "Alexander" },
-  { id: "d2", title: "Globex API Integration", contactId: "ct2", contactName: "James Rivera", companyId: "c2", companyName: "Globex Inc", stage: "proposal", value: 22000, currency: "USD", probability: 50, closeDate: d(-30), notes: "Sent proposal on Monday.", createdAt: d(40), updatedAt: d(5), ownerName: "Alexander" },
-  { id: "d3", title: "Initech Starter Package", contactId: "ct3", contactName: "Emily Watson", companyId: "c3", companyName: "Initech", stage: "qualified", value: 8500, currency: "USD", probability: 30, closeDate: d(-45), notes: "Needs CFO approval.", createdAt: d(25), updatedAt: d(1), ownerName: "Alexander" },
-  { id: "d4", title: "Umbrella Renewal + Upsell", contactId: "ct4", contactName: "Marcus Johnson", companyId: "c4", companyName: "Umbrella LLC", stage: "won", value: 65000, currency: "USD", probability: 100, closeDate: d(10), notes: "Closed! Upsell to premium tier.", createdAt: d(50), updatedAt: d(3), ownerName: "Alexander" },
-  { id: "d5", title: "Acme Add-on Seats", contactId: "ct5", contactName: "Priya Patel", companyId: "c1", companyName: "Acme Corp", stage: "lead", value: 12000, currency: "USD", probability: 15, closeDate: d(-60), notes: "Early stage, needs nurturing.", createdAt: d(15), updatedAt: d(15), ownerName: "Alexander" },
-  { id: "d6", title: "Bradley Consulting Retainer", contactId: "ct6", contactName: "Tom Bradley", companyId: "", companyName: "", stage: "lost", value: 6000, currency: "USD", probability: 0, closeDate: d(20), notes: "Budget constraints cited.", createdAt: d(90), updatedAt: d(30), ownerName: "Alexander" },
-];
-
-export const seedTasks: Task[] = [
-  { id: "t1", title: "Follow up with Sarah Chen re: contract", description: "Check on legal review status and timeline.", status: "todo", priority: "high", dueDate: d(-1), contactId: "ct1", contactName: "Sarah Chen", dealId: "d1", dealName: "Acme Enterprise Plan", createdAt: d(3), updatedAt: d(3) },
-  { id: "t2", title: "Send Globex API proposal", description: "Finalize pricing and attach case studies.", status: "in_progress", priority: "high", dueDate: d(-2), contactId: "ct2", contactName: "James Rivera", dealId: "d2", dealName: "Globex API Integration", createdAt: d(5), updatedAt: d(1) },
-  { id: "t3", title: "Schedule demo with Emily Watson", description: "Book a 45-minute product demo.", status: "todo", priority: "medium", dueDate: d(-5), contactId: "ct3", contactName: "Emily Watson", dealId: "d3", dealName: "Initech Starter Package", createdAt: d(2), updatedAt: d(2) },
-  { id: "t4", title: "Send Umbrella renewal invoice", description: "Generate and send the renewal invoice via Stripe.", status: "done", priority: "high", dueDate: d(5), contactId: "ct4", contactName: "Marcus Johnson", dealId: "d4", dealName: "Umbrella Renewal + Upsell", createdAt: d(8), updatedAt: d(3), completedAt: d(3) },
-  { id: "t5", title: "Update CRM with new contacts from SaaStr", description: "Add the 6 new contacts from last week's event.", status: "todo", priority: "low", dueDate: d(-7), createdAt: d(7), updatedAt: d(7) },
-];
-
-export const seedActivities: Activity[] = [
-  { id: "a1", type: "deal_updated", title: "Deal moved to Negotiation", description: "Acme Enterprise Plan advanced to Negotiation stage.", contactId: "ct1", contactName: "Sarah Chen", dealId: "d1", dealName: "Acme Enterprise Plan", createdAt: d(2) },
-  { id: "a2", type: "email", title: "Email sent to James Rivera", description: "Sent Globex API Integration proposal deck and pricing sheet.", contactId: "ct2", contactName: "James Rivera", dealId: "d2", dealName: "Globex API Integration", createdAt: d(3) },
-  { id: "a3", type: "deal_created", title: "New deal created", description: "Umbrella Renewal + Upsell deal created at $65,000.", contactId: "ct4", contactName: "Marcus Johnson", dealId: "d4", dealName: "Umbrella Renewal + Upsell", createdAt: d(5) },
-  { id: "a4", type: "call", title: "Call with Emily Watson", description: "30-minute discovery call. Interested in starter plan.", contactId: "ct3", contactName: "Emily Watson", createdAt: d(6) },
-  { id: "a5", type: "deal_updated", title: "Deal marked as Won 🎉", description: "Umbrella Renewal + Upsell closed at $65,000.", contactId: "ct4", contactName: "Marcus Johnson", dealId: "d4", dealName: "Umbrella Renewal + Upsell", createdAt: d(3) },
-  { id: "a6", type: "contact_created", title: "New contact added", description: "Priya Patel from Acme Corp added to CRM.", contactId: "ct5", contactName: "Priya Patel", createdAt: d(20) },
-  { id: "a7", type: "task_completed", title: "Task completed", description: "Sent Umbrella renewal invoice to Marcus Johnson.", contactId: "ct4", contactName: "Marcus Johnson", createdAt: d(3) },
-  { id: "a8", type: "meeting", title: "Kickoff meeting with Umbrella LLC", description: "Onboarding kickoff for premium tier upgrade.", contactId: "ct4", contactName: "Marcus Johnson", createdAt: d(1) },
-];
-
-export const seedData: CRMStore = {
-  contacts: seedContacts,
-  companies: seedCompanies,
-  deals: seedDeals,
-  tasks: seedTasks,
-  activities: seedActivities,
-};

@@ -14,10 +14,6 @@
     "react-dom": "^18.3.1",
     "lucide-react": "^0.395.0",
     "recharts": "^2.12.7",
-    "react-hook-form": "^7.52.0",
-    "zod": "^3.23.8",
-    "@hookform/resolvers": "^3.6.0",
-    "@hello-pangea/dnd": "^16.6.0",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0"
   },

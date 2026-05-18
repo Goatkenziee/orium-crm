@@ -1,213 +1,165 @@
 "use client";
-
 import { useState } from "react";
 import { useCRM } from "@/lib/store";
-import { formatCurrency, formatDate, stageColor, avatarColor, getInitials } from "@/lib/utils";
-import { Plus, Trash2, Edit2, GripVertical, TrendingUp } from "lucide-react";
+import TopBar from "@/components/TopBar";
 import Modal from "@/components/Modal";
+import { stageColor, formatCurrencyFull, generateId } from "@/lib/utils";
 import type { Deal, DealStage } from "@/lib/types";
+import { Plus, Pencil, Trash2, GripVertical } from "lucide-react";
 
-const STAGES: { value: DealStage; label: string }[] = [
-  { value: "lead", label: "Lead" },
-  { value: "qualified", label: "Qualified" },
-  { value: "proposal", label: "Proposal" },
-  { value: "negotiation", label: "Negotiation" },
-  { value: "won", label: "Won 🎉" },
-  { value: "lost", label: "Lost" },
-];
+const STAGES: DealStage[] = ["prospecting", "qualification", "proposal", "negotiation", "closed_won", "closed_lost"];
+const STAGE_LABELS: Record<DealStage, string> = {
+  prospecting: "Prospecting", qualification: "Qualification", proposal: "Proposal",
+  negotiation: "Negotiation", closed_won: "Closed Won", closed_lost: "Closed Lost",
+};
 
-const blank = (): Omit<Deal, "id" | "createdAt" | "updatedAt"> => ({
-  title: "", contactId: "", contactName: "", companyId: "", companyName: "",
-  stage: "lead", value: 0, currency: "USD", probability: 20,
-  closeDate: new Date().toISOString().slice(0, 10), notes: "", ownerName: "Alexander",
-});
+const EMPTY: Omit<Deal, "id" | "createdAt" | "updatedAt"> = {
+  title: "", contactId: "", contactName: "", company: "", value: 0,
+  stage: "prospecting", probability: 20, expectedClose: "", notes: "",
+};
 
 export default function DealsPage() {
-  const { deals, contacts, addDeal, updateDeal, deleteDeal, addActivity } = useCRM();
-  const [view, setView] = useState<"kanban" | "table">("kanban");
+  const { state, addDeal, updateDeal, deleteDeal } = useCRM();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Deal | null>(null);
-  const [form, setForm] = useState(blank());
+  const [form, setForm] = useState<Omit<Deal, "id" | "createdAt" | "updatedAt">>(EMPTY);
   const [dragging, setDragging] = useState<string | null>(null);
 
-  const openAdd = (stage?: DealStage) => {
-    setEditing(null);
-    setForm({ ...blank(), stage: stage ?? "lead" });
+  const totalPipeline = state.deals
+    .filter(d => !["closed_won", "closed_lost"].includes(d.stage))
+    .reduce((s, d) => s + d.value, 0);
+
+  function openAdd() { setEditing(null); setForm(EMPTY); setShowModal(true); }
+  function openEdit(d: Deal) {
+    setEditing(d);
+    const { id, createdAt, updatedAt, ...rest } = d;
+    setForm(rest);
     setShowModal(true);
-  };
-  const openEdit = (d: Deal) => { setEditing(d); setForm({ ...d }); setShowModal(true); };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const contact = contacts.find(c => c.id === form.contactId);
-    const payload = { ...form, contactName: contact ? `${contact.firstName} ${contact.lastName}` : form.contactName };
-    if (editing) {
-      updateDeal(editing.id, payload);
-      addActivity({ type: "deal_updated", title: `Deal updated: ${payload.title}`, description: `Stage: ${payload.stage} · Value: ${formatCurrency(payload.value)}`, dealId: editing.id, dealName: payload.title });
-    } else {
-      const created = addDeal(payload);
-      addActivity({ type: "deal_created", title: `New deal: ${payload.title}`, description: `${formatCurrency(payload.value)} · ${payload.stage}`, dealId: created.id, dealName: payload.title, contactId: payload.contactId, contactName: payload.contactName });
-    }
+  }
+  function handleSave() {
+    const now = new Date().toISOString();
+    if (editing) updateDeal({ ...editing, ...form, value: Number(form.value), updatedAt: now });
+    else addDeal({ id: generateId(), ...form, value: Number(form.value), createdAt: now, updatedAt: now });
     setShowModal(false);
-  };
+  }
 
-  const handleDelete = (id: string) => {
-    if (confirm("Delete this deal?")) deleteDeal(id);
-  };
-
-  const handleDrop = (stage: DealStage, dealId: string) => {
-    updateDeal(dealId, { stage });
-    setDragging(null);
-  };
-
-  const totalsByStage = STAGES.map(s => ({
-    ...s,
-    deals: deals.filter(d => d.stage === s.value),
-    total: deals.filter(d => d.stage === s.value).reduce((sum, d) => sum + d.value, 0),
-  }));
-
-  const field = (key: keyof typeof form, label: string, type = "text", required = false) => (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">{label}{required && " *"}</label>
-      <input type={type} required={required} value={(form as any)[key] ?? ""}
-        onChange={e => setForm(f => ({ ...f, [key]: type === "number" ? Number(e.target.value) : e.target.value }))}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-    </div>
-  );
+  function onDrop(stage: DealStage) {
+    if (dragging) {
+      const deal = state.deals.find(d => d.id === dragging);
+      if (deal) updateDeal({ ...deal, stage, updatedAt: new Date().toISOString() });
+      setDragging(null);
+    }
+  }
 
   return (
-    <div className="p-6 flex flex-col h-full">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pipeline</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{deals.length} deals · {formatCurrency(deals.filter(d => !["won","lost"].includes(d.stage)).reduce((s,d)=>s+d.value,0))} open pipeline</p>
-        </div>
-        <div className="flex gap-3">
-          <div className="flex bg-gray-100 rounded-lg p-0.5">
-            <button onClick={() => setView("kanban")} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === "kanban" ? "bg-white shadow text-gray-900" : "text-gray-500"}`}>Kanban</button>
-            <button onClick={() => setView("table")} className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${view === "table" ? "bg-white shadow text-gray-900" : "text-gray-500"}`}>Table</button>
-          </div>
-          <button onClick={() => openAdd()} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-            <Plus className="w-4 h-4" /> Add Deal
-          </button>
-        </div>
+    <div className="p-6 space-y-4">
+      <TopBar title="Deals" subtitle={`Pipeline: ${formatCurrencyFull(totalPipeline)}`} />
+      <div className="flex justify-end">
+        <button onClick={openAdd} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+          <Plus className="w-4 h-4" /> Add Deal
+        </button>
       </div>
 
-      {view === "kanban" ? (
-        <div className="flex gap-4 overflow-x-auto pb-4 flex-1">
-          {totalsByStage.map(({ value: stage, label, deals: stageDeals, total }) => (
-            <div key={stage} className="flex-shrink-0 w-64"
+      {/* Kanban board */}
+      <div className="flex gap-4 overflow-x-auto pb-4">
+        {STAGES.map(stage => {
+          const cards = state.deals.filter(d => d.stage === stage);
+          const stageValue = cards.reduce((s, d) => s + d.value, 0);
+          return (
+            <div key={stage}
               onDragOver={e => e.preventDefault()}
-              onDrop={e => { e.preventDefault(); if (dragging) handleDrop(stage, dragging); }}>
+              onDrop={() => onDrop(stage)}
+              className="flex-shrink-0 w-64 bg-slate-50 rounded-xl border border-slate-200 p-3 min-h-64">
               <div className="flex items-center justify-between mb-3">
-                <div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${stageColor(stage)}`}>{label}</span>
-                  <span className="text-xs text-gray-400 ml-2">{stageDeals.length}</span>
-                </div>
-                <span className="text-xs font-semibold text-gray-600">{formatCurrency(total)}</span>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${stageColor(stage)}`}>
+                  {STAGE_LABELS[stage]}
+                </span>
+                <span className="text-xs text-slate-400 font-medium">{formatCurrencyFull(stageValue)}</span>
               </div>
-              <div className="space-y-2 min-h-12">
-                {stageDeals.map(deal => (
-                  <div key={deal.id}
-                    draggable
-                    onDragStart={() => setDragging(deal.id)}
-                    className="bg-white rounded-xl border border-gray-200 p-3.5 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing transition-shadow group">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <p className="text-sm font-semibold text-gray-900 leading-tight">{deal.title}</p>
-                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                        <button onClick={() => openEdit(deal)} className="p-1 rounded hover:bg-gray-100"><Edit2 className="w-3 h-3 text-gray-400" /></button>
-                        <button onClick={() => handleDelete(deal.id)} className="p-1 rounded hover:bg-red-50"><Trash2 className="w-3 h-3 text-red-400" /></button>
+              <div className="space-y-2">
+                {cards.map(d => (
+                  <div key={d.id} draggable
+                    onDragStart={() => setDragging(d.id)}
+                    onDragEnd={() => setDragging(null)}
+                    className="bg-white rounded-lg border border-slate-200 p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing">
+                    <div className="flex items-start justify-between gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <GripVertical className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                        <p className="text-sm font-medium text-slate-800 leading-tight">{d.title}</p>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <button onClick={() => openEdit(d)} className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-indigo-600"><Pencil className="w-3 h-3" /></button>
+                        <button onClick={() => deleteDeal(d.id)} className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-500"><Trash2 className="w-3 h-3" /></button>
                       </div>
                     </div>
-                    <div className="text-lg font-bold text-gray-900 mb-2">{formatCurrency(deal.value)}</div>
-                    <div className="flex items-center justify-between text-xs text-gray-400">
-                      <span>{deal.contactName}</span>
-                      <span>{deal.probability}%</span>
+                    <p className="text-xs text-slate-500 mt-1 ml-5">{d.company}</p>
+                    <div className="flex items-center justify-between mt-2 ml-5">
+                      <span className="text-sm font-bold text-slate-900">{formatCurrencyFull(d.value)}</span>
+                      <span className="text-xs text-slate-400">{d.probability}%</span>
                     </div>
-                    {deal.closeDate && (
-                      <div className="text-xs text-gray-400 mt-1">Close: {formatDate(deal.closeDate)}</div>
-                    )}
+                    <div className="mt-2 ml-5 bg-slate-100 rounded-full h-1.5">
+                      <div className="bg-indigo-500 h-1.5 rounded-full" style={{ width: `${d.probability}%` }} />
+                    </div>
                   </div>
                 ))}
-                <button onClick={() => openAdd(stage)} className="w-full py-2 rounded-lg border-2 border-dashed border-gray-200 text-gray-400 hover:border-blue-300 hover:text-blue-500 text-xs transition-colors">
-                  + Add deal
-                </button>
+                {cards.length === 0 && (
+                  <p className="text-xs text-slate-400 text-center py-4">Drop deals here</p>
+                )}
               </div>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Deal</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Contact</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Stage</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Value</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Prob.</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Close Date</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {deals.map(deal => (
-                <tr key={deal.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-gray-900">{deal.title}</td>
-                  <td className="px-4 py-3 text-gray-600">{deal.contactName || "—"}</td>
-                  <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${stageColor(deal.stage)}`}>{deal.stage.charAt(0).toUpperCase() + deal.stage.slice(1)}</span></td>
-                  <td className="px-4 py-3 font-semibold text-gray-900">{formatCurrency(deal.value)}</td>
-                  <td className="px-4 py-3 text-gray-600">{deal.probability}%</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">{formatDate(deal.closeDate)}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => openEdit(deal)} className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Edit2 className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => handleDelete(deal.id)} className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+          );
+        })}
+      </div>
 
-      {showModal && (
-        <Modal title={editing ? "Edit Deal" : "New Deal"} onClose={() => setShowModal(false)}>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {field("title", "Deal Title", "text", true)}
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editing ? "Edit Deal" : "New Deal"}>
+        <div className="space-y-3">
+          {[["Deal Title", "title"], ["Contact Name", "contactName"], ["Company", "company"]].map(([label, key]) => (
+            <div key={key}>
+              <label className="block text-xs font-medium text-slate-600 mb-1">{label}</label>
+              <input value={(form as Record<string, unknown>)[key] as string}
+                onChange={e => setForm({ ...form, [key]: e.target.value })}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+            </div>
+          ))}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Contact</label>
-              <select value={form.contactId} onChange={e => setForm(f => ({ ...f, contactId: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Select contact…</option>
-                {contacts.map(c => <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>)}
+              <label className="block text-xs font-medium text-slate-600 mb-1">Value ($)</label>
+              <input type="number" value={form.value} onChange={e => setForm({ ...form, value: Number(e.target.value) })}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Probability (%)</label>
+              <input type="number" min={0} max={100} value={form.probability} onChange={e => setForm({ ...form, probability: Number(e.target.value) })}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Stage</label>
+              <select value={form.stage} onChange={e => setForm({ ...form, stage: e.target.value as DealStage })}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                {STAGES.map(s => <option key={s} value={s}>{STAGE_LABELS[s]}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Stage</label>
-              <select value={form.stage} onChange={e => setForm(f => ({ ...f, stage: e.target.value as DealStage }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                {STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-              </select>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Expected Close</label>
+              <input type="date" value={form.expectedClose} onChange={e => setForm({ ...form, expectedClose: e.target.value })}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              {field("value", "Value ($)", "number", true)}
-              {field("probability", "Probability (%)", "number")}
-            </div>
-            {field("closeDate", "Close Date", "date")}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Notes</label>
-              <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={3}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
-            </div>
-            <div className="flex justify-end gap-3 pt-2">
-              <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition-colors">Cancel</button>
-              <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">{editing ? "Save Changes" : "Create Deal"}</button>
-            </div>
-          </form>
-        </Modal>
-      )}
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Notes</label>
+            <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none" />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button onClick={handleSave} className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium">
+            {editing ? "Save Changes" : "Create Deal"}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

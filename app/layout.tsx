@@ -8,18 +8,20 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Orium CRM",
-  description: "Full-featured CRM for Alexander — powered by Orium AI",
+  description: "Full-featured CRM — Orium AI",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-slate-50`}>
+      <body className={`${inter.className} bg-slate-50 text-slate-900`}>
         <CRMProvider>
-          <Sidebar />
-          <main className="ml-60 min-h-screen flex flex-col">
-            {children}
-          </main>
+          <div className="flex h-screen overflow-hidden">
+            <Sidebar />
+            <main className="flex-1 overflow-y-auto">
+              {children}
+            </main>
+          </div>
         </CRMProvider>
       </body>
     </html>

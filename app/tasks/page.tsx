@@ -1,198 +1,143 @@
 "use client";
-
 import { useState } from "react";
 import { useCRM } from "@/lib/store";
-import { formatDate } from "@/lib/utils";
-import { Plus, Trash2, Edit2, CheckCircle2, Circle, AlertCircle, Clock } from "lucide-react";
+import TopBar from "@/components/TopBar";
 import Modal from "@/components/Modal";
-import type { Task, TaskStatus, TaskPriority } from "@/lib/types";
+import { priorityColor, taskStatusColor, generateId } from "@/lib/utils";
+import type { Task, TaskPriority, TaskStatus } from "@/lib/types";
+import { Plus, Pencil, Trash2, CheckCircle2, Circle } from "lucide-react";
 
-const PRIORITIES: TaskPriority[] = ["low", "medium", "high", "urgent"];
+const PRIORITIES: TaskPriority[] = ["low", "medium", "high"];
 const STATUSES: TaskStatus[] = ["todo", "in_progress", "done"];
+const STATUS_LABELS: Record<TaskStatus, string> = { todo: "To Do", in_progress: "In Progress", done: "Done" };
+const PRIORITY_LABELS: Record<TaskPriority, string> = { low: "Low", medium: "Medium", high: "High" };
 
-const priorityConfig: Record<TaskPriority, { label: string; className: string; icon: string }> = {
-  low: { label: "Low", className: "text-gray-500 bg-gray-100", icon: "·" },
-  medium: { label: "Medium", className: "text-blue-600 bg-blue-50", icon: "●" },
-  high: { label: "High", className: "text-orange-600 bg-orange-50", icon: "▲" },
-  urgent: { label: "Urgent", className: "text-red-600 bg-red-50", icon: "!!!" },
+const EMPTY: Omit<Task, "id" | "createdAt" | "updatedAt"> = {
+  title: "", description: "", priority: "medium", status: "todo", dueDate: "", assignee: "Alexander",
 };
 
-const blank = (): Omit<Task, "id" | "createdAt" | "updatedAt"> => ({
-  title: "", description: "", status: "todo", priority: "medium",
-  dueDate: "", contactId: "", contactName: "", dealId: "", dealName: "", assignedTo: "Alexander",
-});
-
 export default function TasksPage() {
-  const { tasks, contacts, deals, addTask, updateTask, deleteTask, addActivity } = useCRM();
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterPriority, setFilterPriority] = useState<string>("all");
+  const { state, addTask, updateTask, deleteTask } = useCRM();
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
-  const [form, setForm] = useState(blank());
+  const [form, setForm] = useState<Omit<Task, "id" | "createdAt" | "updatedAt">>(EMPTY);
 
-  const filtered = tasks.filter(t => {
-    const matchStatus = filterStatus === "all" || t.status === filterStatus;
-    const matchPriority = filterPriority === "all" || t.priority === filterPriority;
-    return matchStatus && matchPriority;
-  }).sort((a, b) => {
-    const po: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
-    return (po[a.priority] ?? 4) - (po[b.priority] ?? 4);
-  });
+  const filtered = state.tasks.filter(t => statusFilter === "all" || t.status === statusFilter);
+  const todo = filtered.filter(t => t.status === "todo").length;
+  const inProgress = filtered.filter(t => t.status === "in_progress").length;
+  const done = filtered.filter(t => t.status === "done").length;
 
-  const openAdd = () => { setEditing(null); setForm(blank()); setShowModal(true); };
-  const openEdit = (t: Task) => { setEditing(t); setForm({ ...t }); setShowModal(true); };
-
-  const toggleDone = (t: Task) => {
-    const newStatus: TaskStatus = t.status === "done" ? "todo" : "done";
-    updateTask(t.id, { status: newStatus });
-    if (newStatus === "done") addActivity({ type: "task_completed", title: `Task completed: ${t.title}`, description: t.description || "" });
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const contact = contacts.find(c => c.id === form.contactId);
-    const deal = deals.find(d => d.id === form.dealId);
-    const payload = {
-      ...form,
-      contactName: contact ? `${contact.firstName} ${contact.lastName}` : form.contactName,
-      dealName: deal ? deal.title : form.dealName,
-    };
-    if (editing) updateTask(editing.id, payload);
-    else addTask(payload);
+  function openAdd() { setEditing(null); setForm(EMPTY); setShowModal(true); }
+  function openEdit(t: Task) {
+    setEditing(t);
+    const { id, createdAt, updatedAt, ...rest } = t;
+    setForm(rest);
+    setShowModal(true);
+  }
+  function handleSave() {
+    const now = new Date().toISOString();
+    if (editing) updateTask({ ...editing, ...form, updatedAt: now });
+    else addTask({ id: generateId(), ...form, createdAt: now, updatedAt: now });
     setShowModal(false);
-  };
-
-  const stats = {
-    total: tasks.length,
-    todo: tasks.filter(t => t.status === "todo").length,
-    in_progress: tasks.filter(t => t.status === "in_progress").length,
-    done: tasks.filter(t => t.status === "done").length,
-    urgent: tasks.filter(t => t.priority === "urgent" && t.status !== "done").length,
-  };
+  }
+  function toggleDone(t: Task) {
+    updateTask({ ...t, status: t.status === "done" ? "todo" : "done", updatedAt: new Date().toISOString() });
+  }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{stats.todo} to do · {stats.in_progress} in progress · {stats.done} done</p>
+    <div className="p-6 space-y-4">
+      <TopBar title="Tasks" subtitle={`${todo} to do · ${inProgress} in progress · ${done} done`} />
+
+      <div className="flex flex-wrap items-center gap-3 justify-between">
+        <div className="flex gap-1">
+          {(["all", ...STATUSES] as const).map(s => (
+            <button key={s} onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${statusFilter === s ? "bg-indigo-600 text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+              {s === "all" ? "All" : STATUS_LABELS[s]}
+            </button>
+          ))}
         </div>
-        <button onClick={openAdd} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+        <button onClick={openAdd} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
           <Plus className="w-4 h-4" /> Add Task
         </button>
       </div>
 
-      {/* Stats */}
-      {stats.urgent > 0 && (
-        <div className="mb-5 flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          {stats.urgent} urgent task{stats.urgent > 1 ? "s" : ""} need attention
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="flex gap-3 mb-5">
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="all">All Status</option>
-          <option value="todo">To Do</option>
-          <option value="in_progress">In Progress</option>
-          <option value="done">Done</option>
-        </select>
-        <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="all">All Priorities</option>
-          {PRIORITIES.map(p => <option key={p} value={p}>{priorityConfig[p].label}</option>)}
-        </select>
-      </div>
-
-      {/* Task List */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {filtered.length === 0 && (
-          <div className="py-16 text-center text-gray-400">No tasks found. Add one above!</div>
-        )}
-        {filtered.map((task, idx) => (
-          <div key={task.id} className={`flex items-start gap-3 px-5 py-4 hover:bg-gray-50 transition-colors group ${idx > 0 ? "border-t border-gray-100" : ""}`}>
-            <button onClick={() => toggleDone(task)} className="mt-0.5 flex-shrink-0 text-gray-300 hover:text-blue-500 transition-colors">
-              {task.status === "done"
-                ? <CheckCircle2 className="w-5 h-5 text-green-500" />
-                : <Circle className="w-5 h-5" />}
+      <div className="space-y-2">
+        {filtered.map(t => (
+          <div key={t.id} className={`bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3 hover:shadow-sm transition-shadow ${t.status === "done" ? "opacity-60" : ""}`}>
+            <button onClick={() => toggleDone(t)} className="shrink-0 text-slate-400 hover:text-green-500 transition-colors">
+              {t.status === "done" ? <CheckCircle2 className="w-5 h-5 text-green-500" /> : <Circle className="w-5 h-5" />}
             </button>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                <span className={`text-sm font-medium ${task.status === "done" ? "line-through text-gray-400" : "text-gray-900"}`}>{task.title}</span>
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${priorityConfig[task.priority].className}`}>{priorityConfig[task.priority].label}</span>
-                {task.status === "in_progress" && (
-                  <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium flex items-center gap-1"><Clock className="w-3 h-3" />In Progress</span>
-                )}
-              </div>
-              {task.description && <p className="text-xs text-gray-500 truncate">{task.description}</p>}
-              <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
-                {task.contactName && <span>@ {task.contactName}</span>}
-                {task.dealName && <span>Deal: {task.dealName}</span>}
-                {task.dueDate && <span>Due: {formatDate(task.dueDate)}</span>}
+              <p className={`font-medium text-slate-900 ${t.status === "done" ? "line-through" : ""}`}>{t.title}</p>
+              {t.description && <p className="text-xs text-slate-500 mt-0.5 truncate">{t.description}</p>}
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${priorityColor(t.priority)}`}>{PRIORITY_LABELS[t.priority]}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${taskStatusColor(t.status)}`}>{STATUS_LABELS[t.status]}</span>
+                {t.dueDate && <span className="text-xs text-slate-400">Due {new Date(t.dueDate).toLocaleDateString()}</span>}
+                {t.assignee && <span className="text-xs text-slate-400">· {t.assignee}</span>}
               </div>
             </div>
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              {task.status !== "done" && (
-                <button onClick={() => updateTask(task.id, { status: "in_progress" })} className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">Start</button>
-              )}
-              <button onClick={() => openEdit(task)} className="p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700"><Edit2 className="w-3.5 h-3.5" /></button>
-              <button onClick={() => { if (confirm("Delete?")) deleteTask(task.id); }} className="p-1.5 rounded hover:bg-red-50 text-gray-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-indigo-600"><Pencil className="w-3.5 h-3.5" /></button>
+              <button onClick={() => deleteTask(t.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
             </div>
           </div>
         ))}
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-slate-400 text-sm">No tasks found.</div>
+        )}
       </div>
 
-      {showModal && (
-        <Modal title={editing ? "Edit Task" : "New Task"} onClose={() => setShowModal(false)}>
-          <form onSubmit={handleSubmit} className="space-y-4">
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editing ? "Edit Task" : "New Task"}>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Title</label>
+            <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
+            <textarea value={form.description ?? ""} onChange={e => setForm({ ...form, description: e.target.value })} rows={2}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Title *</label>
-              <input required value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
-              <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Priority</label>
-                <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value as TaskPriority }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {PRIORITIES.map(p => <option key={p} value={p}>{priorityConfig[p].label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Status</label>
-                <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as TaskStatus }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {STATUSES.map(s => <option key={s} value={s}>{s.replace("_", " ").replace(/\b\w/g, l => l.toUpperCase())}</option>)}
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Due Date</label>
-              <input type="date" value={form.dueDate || ""} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Linked Contact</label>
-              <select value={form.contactId} onChange={e => setForm(f => ({ ...f, contactId: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">None</option>
-                {contacts.map(c => <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>)}
+              <label className="block text-xs font-medium text-slate-600 mb-1">Priority</label>
+              <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value as TaskPriority })}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                {PRIORITIES.map(p => <option key={p} value={p}>{PRIORITY_LABELS[p]}</option>)}
               </select>
             </div>
-            <div className="flex justify-end gap-3 pt-2">
-              <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-              <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">{editing ? "Save" : "Add Task"}</button>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
+              <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as TaskStatus })}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                {STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+              </select>
             </div>
-          </form>
-        </Modal>
-      )}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Due Date</label>
+              <input type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Assignee</label>
+              <input value={form.assignee ?? ""} onChange={e => setForm({ ...form, assignee: e.target.value })}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Cancel</button>
+          <button onClick={handleSave} className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 font-medium">
+            {editing ? "Save Changes" : "Create Task"}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
