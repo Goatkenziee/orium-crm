@@ -1,31 +1,27 @@
-import { ReactNode } from "react";
-import clsx from "clsx";
-
-export default function KpiCard({ label, value, sub, color = "blue", icon }: {
-  label: string;
+interface Props {
+  title: string;
   value: string | number;
   sub?: string;
-  color?: "blue" | "green" | "purple" | "orange";
-  icon?: ReactNode;
-}) {
-  const colors = {
-    blue: "bg-blue-50 text-blue-600",
-    green: "bg-green-50 text-green-600",
-    purple: "bg-purple-50 text-purple-600",
-    orange: "bg-orange-50 text-orange-600",
-  };
+  icon: React.ReactNode;
+  trend?: string;
+  trendUp?: boolean;
+  color?: string;
+}
+
+export default function KpiCard({ title, value, sub, icon, trend, trendUp, color = "bg-blue-50 text-blue-600" }: Props) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-start gap-4">
-      {icon && (
-        <div className={clsx("w-10 h-10 rounded-lg flex items-center justify-center shrink-0", colors[color])}>
-          {icon}
+    <div className="bg-white rounded-xl border border-slate-200 p-5">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">{title}</span>
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>{icon}</div>
+      </div>
+      <div className="text-2xl font-bold text-slate-900">{value}</div>
+      {sub && <div className="text-xs text-slate-500 mt-0.5">{sub}</div>}
+      {trend && (
+        <div className={`text-xs mt-1.5 font-medium ${trendUp ? "text-emerald-600" : "text-red-500"}`}>
+          {trendUp ? "↑" : "↓"} {trend}
         </div>
       )}
-      <div>
-        <p className="text-sm text-slate-500 font-medium">{label}</p>
-        <p className="text-2xl font-bold text-slate-900 mt-0.5">{value}</p>
-        {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
-      </div>
     </div>
   );
 }

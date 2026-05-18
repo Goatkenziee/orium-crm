@@ -1,8 +1,8 @@
 export type ContactStatus = "lead" | "prospect" | "customer" | "churned";
 export type DealStage = "prospecting" | "qualification" | "proposal" | "negotiation" | "closed_won" | "closed_lost";
-export type TaskPriority = "low" | "medium" | "high";
 export type TaskStatus = "todo" | "in_progress" | "done";
-export type ActivityType = "call" | "email" | "meeting" | "note" | "contact_created" | "deal_created";
+export type TaskPriority = "low" | "medium" | "high";
+export type ActivityType = "call" | "email" | "meeting" | "note" | "task";
 
 export interface Contact {
   id: string;
@@ -11,29 +11,34 @@ export interface Contact {
   email: string;
   phone: string;
   company: string;
-  companyId: string;
   title: string;
   status: ContactStatus;
   tags: string[];
-  notes: string;
-  value?: number;
   createdAt: string;
-  updatedAt: string;
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  industry: string;
+  website: string;
+  employees: number;
+  revenue: number;
+  country: string;
+  createdAt: string;
 }
 
 export interface Deal {
   id: string;
   title: string;
   contactId: string;
-  contactName: string;
-  company: string;
-  value: number;
+  companyId: string;
   stage: DealStage;
+  value: number;
   probability: number;
-  expectedClose: string;
-  createdAt: string;
-  updatedAt: string;
+  closeDate: string;
   notes: string;
+  createdAt: string;
 }
 
 export interface Task {
@@ -46,23 +51,6 @@ export interface Task {
   status: TaskStatus;
   dueDate: string;
   createdAt: string;
-  updatedAt: string;
-  assignee: string;
-}
-
-export interface Company {
-  id: string;
-  name: string;
-  industry: string;
-  website: string;
-  phone: string;
-  email: string;
-  address: string;
-  employees: string;
-  revenue: number;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface Activity {
@@ -72,7 +60,13 @@ export interface Activity {
   description: string;
   contactId?: string;
   dealId?: string;
-  contactName?: string;
   createdAt: string;
-  duration?: number;
+}
+
+export interface CRMState {
+  contacts: Contact[];
+  companies: Company[];
+  deals: Deal[];
+  tasks: Task[];
+  activities: Activity[];
 }

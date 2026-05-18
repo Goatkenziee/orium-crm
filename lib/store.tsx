@@ -1,131 +1,76 @@
 "use client";
-import React, { createContext, useContext, useReducer, ReactNode } from "react";
-import type { Contact, Deal, Task, Company, Activity } from "./types";
-import {
-  SEED_CONTACTS,
-  SEED_DEALS,
-  SEED_TASKS,
-  SEED_COMPANIES,
-  SEED_ACTIVITIES,
-} from "./data";
+import { createContext, useContext, useState, ReactNode } from "react";
+import { Contact, Company, Deal, Task, Activity } from "./types";
+import { uuid } from "./utils";
+import { SEED_CONTACTS, SEED_COMPANIES, SEED_DEALS, SEED_TASKS, SEED_ACTIVITIES } from "./data";
 
-// ─── State ───────────────────────────────────────────────────────────────────
-interface CRMState {
+interface CRMContextType {
   contacts: Contact[];
+  companies: Company[];
   deals: Deal[];
   tasks: Task[];
-  companies: Company[];
   activities: Activity[];
-}
 
-const initialState: CRMState = {
-  contacts: SEED_CONTACTS,
-  deals: SEED_DEALS,
-  tasks: SEED_TASKS,
-  companies: SEED_COMPANIES,
-  activities: SEED_ACTIVITIES,
-};
-
-// ─── Actions ─────────────────────────────────────────────────────────────────
-type Action =
-  | { type: "ADD_CONTACT"; payload: Contact }
-  | { type: "UPDATE_CONTACT"; payload: Contact }
-  | { type: "DELETE_CONTACT"; payload: string }
-  | { type: "ADD_DEAL"; payload: Deal }
-  | { type: "UPDATE_DEAL"; payload: Deal }
-  | { type: "DELETE_DEAL"; payload: string }
-  | { type: "ADD_TASK"; payload: Task }
-  | { type: "UPDATE_TASK"; payload: Task }
-  | { type: "DELETE_TASK"; payload: string }
-  | { type: "ADD_COMPANY"; payload: Company }
-  | { type: "UPDATE_COMPANY"; payload: Company }
-  | { type: "DELETE_COMPANY"; payload: string }
-  | { type: "ADD_ACTIVITY"; payload: Activity }
-  | { type: "DELETE_ACTIVITY"; payload: string };
-
-function reducer(state: CRMState, action: Action): CRMState {
-  switch (action.type) {
-    case "ADD_CONTACT": return { ...state, contacts: [action.payload, ...state.contacts] };
-    case "UPDATE_CONTACT": return { ...state, contacts: state.contacts.map(c => c.id === action.payload.id ? action.payload : c) };
-    case "DELETE_CONTACT": return { ...state, contacts: state.contacts.filter(c => c.id !== action.payload) };
-    case "ADD_DEAL": return { ...state, deals: [action.payload, ...state.deals] };
-    case "UPDATE_DEAL": return { ...state, deals: state.deals.map(d => d.id === action.payload.id ? action.payload : d) };
-    case "DELETE_DEAL": return { ...state, deals: state.deals.filter(d => d.id !== action.payload) };
-    case "ADD_TASK": return { ...state, tasks: [action.payload, ...state.tasks] };
-    case "UPDATE_TASK": return { ...state, tasks: state.tasks.map(t => t.id === action.payload.id ? action.payload : t) };
-    case "DELETE_TASK": return { ...state, tasks: state.tasks.filter(t => t.id !== action.payload) };
-    case "ADD_COMPANY": return { ...state, companies: [action.payload, ...state.companies] };
-    case "UPDATE_COMPANY": return { ...state, companies: state.companies.map(c => c.id === action.payload.id ? action.payload : c) };
-    case "DELETE_COMPANY": return { ...state, companies: state.companies.filter(c => c.id !== action.payload) };
-    case "ADD_ACTIVITY": return { ...state, activities: [action.payload, ...state.activities] };
-    case "DELETE_ACTIVITY": return { ...state, activities: state.activities.filter(a => a.id !== action.payload) };
-    default: return state;
-  }
-}
-
-// ─── Context ─────────────────────────────────────────────────────────────────
-interface CRMContextValue {
-  state: CRMState;
-  contacts: Contact[];
-  deals: Deal[];
-  tasks: Task[];
-  companies: Company[];
-  activities: Activity[];
-  addContact: (c: Contact) => void;
-  updateContact: (c: Contact) => void;
+  addContact: (c: Omit<Contact, "id" | "createdAt">) => void;
+  updateContact: (id: string, c: Partial<Contact>) => void;
   deleteContact: (id: string) => void;
-  addDeal: (d: Deal) => void;
-  updateDeal: (d: Deal) => void;
-  deleteDeal: (id: string) => void;
-  addTask: (t: Task) => void;
-  updateTask: (t: Task) => void;
-  deleteTask: (id: string) => void;
-  addCompany: (c: Company) => void;
-  updateCompany: (c: Company) => void;
+
+  addCompany: (c: Omit<Company, "id" | "createdAt">) => void;
+  updateCompany: (id: string, c: Partial<Company>) => void;
   deleteCompany: (id: string) => void;
+
+  addDeal: (d: Omit<Deal, "id" | "createdAt">) => void;
+  updateDeal: (id: string, d: Partial<Deal>) => void;
+  deleteDeal: (id: string) => void;
+
+  addTask: (t: Omit<Task, "id" | "createdAt">) => void;
+  updateTask: (id: string, t: Partial<Task>) => void;
+  deleteTask: (id: string) => void;
+
   addActivity: (a: Omit<Activity, "id" | "createdAt">) => void;
   deleteActivity: (id: string) => void;
 }
 
-const CRMContext = createContext<CRMContextValue | null>(null);
+const CRMContext = createContext<CRMContextType | null>(null);
 
 export function CRMProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const now = () => new Date().toISOString();
 
-  const ctx: CRMContextValue = {
-    state,
-    contacts: state.contacts,
-    deals: state.deals,
-    tasks: state.tasks,
-    companies: state.companies,
-    activities: state.activities,
-    addContact: (c) => dispatch({ type: "ADD_CONTACT", payload: c }),
-    updateContact: (c) => dispatch({ type: "UPDATE_CONTACT", payload: c }),
-    deleteContact: (id) => dispatch({ type: "DELETE_CONTACT", payload: id }),
-    addDeal: (d) => dispatch({ type: "ADD_DEAL", payload: d }),
-    updateDeal: (d) => dispatch({ type: "UPDATE_DEAL", payload: d }),
-    deleteDeal: (id) => dispatch({ type: "DELETE_DEAL", payload: id }),
-    addTask: (t) => dispatch({ type: "ADD_TASK", payload: t }),
-    updateTask: (t) => dispatch({ type: "UPDATE_TASK", payload: t }),
-    deleteTask: (id) => dispatch({ type: "DELETE_TASK", payload: id }),
-    addCompany: (c) => dispatch({ type: "ADD_COMPANY", payload: c }),
-    updateCompany: (c) => dispatch({ type: "UPDATE_COMPANY", payload: c }),
-    deleteCompany: (id) => dispatch({ type: "DELETE_COMPANY", payload: id }),
-    addActivity: (a) => dispatch({
-      type: "ADD_ACTIVITY",
-      payload: {
-        ...a,
-        id: Math.random().toString(36).slice(2, 10),
-        createdAt: new Date().toISOString(),
-      },
-    }),
-    deleteActivity: (id) => dispatch({ type: "DELETE_ACTIVITY", payload: id }),
-  };
+  const [contacts, setContacts] = useState<Contact[]>(SEED_CONTACTS);
+  const [companies, setCompanies] = useState<Company[]>(SEED_COMPANIES);
+  const [deals, setDeals] = useState<Deal[]>(SEED_DEALS);
+  const [tasks, setTasks] = useState<Task[]>(SEED_TASKS);
+  const [activities, setActivities] = useState<Activity[]>(SEED_ACTIVITIES);
 
-  return <CRMContext.Provider value={ctx}>{children}</CRMContext.Provider>;
+  return (
+    <CRMContext.Provider value={{
+      contacts, companies, deals, tasks, activities,
+
+      addContact: (c) => setContacts(p => [...p, { ...c, id: uuid(), createdAt: now() }]),
+      updateContact: (id, c) => setContacts(p => p.map(x => x.id === id ? { ...x, ...c } : x)),
+      deleteContact: (id) => setContacts(p => p.filter(x => x.id !== id)),
+
+      addCompany: (c) => setCompanies(p => [...p, { ...c, id: uuid(), createdAt: now() }]),
+      updateCompany: (id, c) => setCompanies(p => p.map(x => x.id === id ? { ...x, ...c } : x)),
+      deleteCompany: (id) => setCompanies(p => p.filter(x => x.id !== id)),
+
+      addDeal: (d) => setDeals(p => [...p, { ...d, id: uuid(), createdAt: now() }]),
+      updateDeal: (id, d) => setDeals(p => p.map(x => x.id === id ? { ...x, ...d } : x)),
+      deleteDeal: (id) => setDeals(p => p.filter(x => x.id !== id)),
+
+      addTask: (t) => setTasks(p => [...p, { ...t, id: uuid(), createdAt: now() }]),
+      updateTask: (id, t) => setTasks(p => p.map(x => x.id === id ? { ...x, ...t } : x)),
+      deleteTask: (id) => setTasks(p => p.filter(x => x.id !== id)),
+
+      addActivity: (a) => setActivities(p => [{ ...a, id: uuid(), createdAt: now() }, ...p]),
+      deleteActivity: (id) => setActivities(p => p.filter(x => x.id !== id)),
+    }}>
+      {children}
+    </CRMContext.Provider>
+  );
 }
 
-export function useCRM(): CRMContextValue {
+export function useCRM() {
   const ctx = useContext(CRMContext);
   if (!ctx) throw new Error("useCRM must be used within CRMProvider");
   return ctx;
