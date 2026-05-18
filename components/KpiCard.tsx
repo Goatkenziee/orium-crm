@@ -1,43 +1,29 @@
 import { LucideIcon } from "lucide-react";
-import clsx from "clsx";
 
 interface KpiCardProps {
-  title: string;
-  value: string;
-  change?: string;
-  changePositive?: boolean;
+  label: string;
+  value: string | number;
   icon: LucideIcon;
-  iconColor: string;
-  iconBg: string;
+  iconBg?: string;
+  trend?: { value: string; positive: boolean };
+  sub?: string;
 }
 
-export default function KpiCard({
-  title,
-  value,
-  change,
-  changePositive,
-  icon: Icon,
-  iconColor,
-  iconBg,
-}: KpiCardProps) {
+export default function KpiCard({ label, value, icon: Icon, iconBg = "bg-blue-100", trend, sub }: KpiCardProps) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-start gap-4">
-      <div className={clsx("w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0", iconBg)}>
-        <Icon size={20} className={iconColor} />
+    <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-start gap-4 hover:shadow-md transition-shadow">
+      <div className={`w-10 h-10 rounded-lg ${iconBg} flex items-center justify-center flex-shrink-0`}>
+        <Icon className="w-5 h-5 text-blue-600" />
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-slate-500 font-medium">{title}</p>
+      <div className="min-w-0">
+        <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">{label}</p>
         <p className="text-2xl font-bold text-slate-900 mt-0.5">{value}</p>
-        {change && (
-          <p
-            className={clsx(
-              "text-xs font-medium mt-1",
-              changePositive ? "text-emerald-600" : "text-red-500"
-            )}
-          >
-            {changePositive ? "▲" : "▼"} {change}
+        {trend && (
+          <p className={`text-xs mt-1 font-medium ${trend.positive ? "text-emerald-600" : "text-red-500"}`}>
+            {trend.positive ? "↑" : "↓"} {trend.value}
           </p>
         )}
+        {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
       </div>
     </div>
   );

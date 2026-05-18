@@ -3,6 +3,15 @@ import type { Contact, Company, Deal, Task, Activity, CRMStore } from "./types";
 const now = new Date().toISOString();
 const d = (daysAgo: number) => new Date(Date.now() - daysAgo * 86400000).toISOString();
 
+export const MONTHLY_REVENUE = [
+  { month: "Dec", revenue: 28000 },
+  { month: "Jan", revenue: 34000 },
+  { month: "Feb", revenue: 29500 },
+  { month: "Mar", revenue: 42000 },
+  { month: "Apr", revenue: 38000 },
+  { month: "May", revenue: 51000 },
+];
+
 export const seedCompanies: Company[] = [
   { id: "c1", name: "Acme Corp", domain: "acme.com", industry: "Technology", size: "51-200", revenue: 5000000, phone: "+1 415 555 0100", address: "123 Market St, San Francisco, CA", notes: "Key enterprise account.", createdAt: d(90), updatedAt: d(10) },
   { id: "c2", name: "Globex Inc", domain: "globex.com", industry: "Manufacturing", size: "201-500", revenue: 12000000, phone: "+1 212 555 0200", address: "45 Park Ave, New York, NY", notes: "Large mid-market client.", createdAt: d(80), updatedAt: d(5) },

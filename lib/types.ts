@@ -7,12 +7,8 @@ export type ActivityType =
   | "call"
   | "meeting"
   | "note"
-  | "deal_won"
-  | "deal_lost"
-  | "contact_added"
-  | "task_done"
-  | "deal_updated"
   | "deal_created"
+  | "deal_updated"
   | "contact_created"
   | "task_completed";
 
@@ -21,14 +17,13 @@ export interface Contact {
   firstName: string;
   lastName: string;
   email: string;
-  phone?: string;
+  phone: string;
   company: string;
-  companyId?: string;
-  title?: string;
+  companyId: string;
+  title: string;
   status: ContactStatus;
   tags: string[];
-  value: number;
-  notes?: string;
+  notes: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,14 +31,16 @@ export interface Contact {
 export interface Company {
   id: string;
   name: string;
-  industry?: string;
+  domain?: string;
   website?: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  employees: number;
+  industry: string;
+  size?: string;
+  employees?: number;
   revenue: number;
-  notes?: string;
+  phone: string;
+  email?: string;
+  address: string;
+  notes: string;
   ownerId?: string;
   createdAt: string;
   updatedAt: string;
@@ -52,17 +49,17 @@ export interface Company {
 export interface Deal {
   id: string;
   title: string;
-  contactId?: string;
-  contactName?: string;
-  companyId?: string;
-  companyName?: string;
+  contactId: string;
+  contactName: string;
+  companyId: string;
+  companyName: string;
   stage: DealStage;
   value: number;
-  currency?: string;
+  currency: string;
   probability: number;
-  closeDate?: string;
-  notes?: string;
-  ownerName?: string;
+  closeDate: string;
+  notes: string;
+  ownerName: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -70,25 +67,25 @@ export interface Deal {
 export interface Task {
   id: string;
   title: string;
-  description?: string;
+  description: string;
   status: TaskStatus;
   priority: TaskPriority;
-  dueDate?: string;
+  dueDate: string;
   contactId?: string;
   contactName?: string;
   dealId?: string;
   dealName?: string;
   assignedTo?: string;
-  completedAt?: string;
   createdAt: string;
   updatedAt: string;
+  completedAt?: string;
 }
 
 export interface Activity {
   id: string;
   type: ActivityType;
   title: string;
-  description?: string;
+  description: string;
   contactId?: string;
   contactName?: string;
   dealId?: string;
